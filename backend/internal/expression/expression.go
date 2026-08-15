@@ -5,6 +5,12 @@
 // rejected. Operators are the characters listed in the Operator constants, and
 // multiplication and division bind tighter than addition and subtraction.
 //
+// Percent is postfix and binds tighter than either, so it attaches to the
+// number beside it. Its meaning depends on the operation holding it: against
+// addition and subtraction it is a share of the left operand, so "200 − 10%" is
+// 180, while against multiplication and division it is a plain hundredth, so
+// "200 × 10%" is 20.
+//
 // Parsing and evaluation are separate steps, and both can fail:
 //
 //	expr, err := expression.New(strings.NewReader("1 + 2 × 3"))
@@ -38,6 +44,7 @@ type Expression interface {
 var (
 	_ Expression = atomExpression{}
 	_ Expression = binaryExpression{}
+	_ Expression = unaryExpression{}
 )
 
 // atomExpression is a leaf node holding an unparsed numeric literal. The
@@ -66,6 +73,34 @@ func (a atomExpression) String() string {
 	return a.value
 }
 
+// unaryExpression is a node applying an operator to the single operand on its
+// left. Percent is currently the only operator with this arity.
+//
+// On its own it evaluates to a hundredth of that operand. Read as a share of
+// something else — "200 − 10%" being 180 rather than 199.9 — it needs the left
+// operand of the surrounding operation, which this node cannot see; that case
+// is handled by binaryExpression.Eval, which can.
+type unaryExpression struct {
+	operand Expression
+}
+
+func newUnaryExpression(operand Expression) unaryExpression {
+	return unaryExpression{operand: operand}
+}
+
+func (u unaryExpression) Eval() (float32, error) {
+	val, err := u.operand.Eval()
+	if err != nil {
+		return 0, err
+	}
+
+	return val / 100, nil
+}
+
+func (u unaryExpression) String() string {
+	return fmt.Sprintf("(%s %s)", OperatorPercent, u.operand)
+}
+
 // binaryExpression is an internal node applying an operator to exactly two
 // operands. Build it with newBinaryExpression, which enforces that count;
 // constructing it directly with a different number of operands makes Eval
@@ -75,8 +110,8 @@ type binaryExpression struct {
 	operands []Expression
 }
 
-// newBinaryExpression returns ErrOperandCount unless exactly two operands
-// are supplied.
+// newBinaryExpression returns ErrOperandCount unless exactly two operands are
+// supplied.
 func newBinaryExpression(op Operator, operands ...Expression) (binaryExpression, error) {
 	if len(operands) != 2 {
 		return binaryExpression{}, fmt.Errorf("%w, got %d", ErrOperandCount, len(operands))
@@ -101,6 +136,19 @@ func (o binaryExpression) Eval() (float32, error) {
 	right, err := o.operands[1].Eval()
 	if err != nil {
 		return 0, err
+	}
+
+	// A percent on the right of an addition or subtraction is a share of the
+	// left operand, so "200 − 10%" is 180. Multiplication and division take it
+	// as the plain hundredth it already evaluated to, since a share of the left
+	// operand would make "200 × 10%" mean "200 × 20".
+	if _, isPercent := o.operands[1].(unaryExpression); isPercent {
+		switch o.operator {
+		case OperatorPlus:
+			return left + left*right, nil
+		case OperatorMinus:
+			return left - left*right, nil
+		}
 	}
 
 	switch o.operator {
@@ -164,6 +212,21 @@ func parseExpression(lx *lexer, minBindingPower float32) (Expression, error) {
 
 		op := Operator([]rune(peeked.literal)[0])
 
+		// A postfix operator consumes the left-hand side and leaves it as the
+		// new left-hand side, so the loop can take another operator after it:
+		// "5%%" and "5% + 3" both continue from here.
+		if op.IsPostfix() {
+			if postfixBindingPower(op) < minBindingPower {
+				break
+			}
+
+			lx.next()
+
+			leftHandSide = newUnaryExpression(leftHandSide)
+
+			continue
+		}
+
 		leftBindingPower, rightBindingPower, err := infixBindingPower(op)
 		if err != nil {
 			return nil, err
@@ -187,6 +250,13 @@ func parseExpression(lx *lexer, minBindingPower float32) (Expression, error) {
 	}
 
 	return leftHandSide, nil
+}
+
+// postfixBindingPower returns the binding power of a postfix operator. It sits
+// above every infix power, so percent attaches to the atom beside it rather
+// than to the expression around it: "2 + 3 × 4%" is "(+ 2 (× 3 (% 4)))".
+func postfixBindingPower(_ Operator) float32 {
+	return 3.0
 }
 
 // infixBindingPower returns the left and right binding powers for op. The right
