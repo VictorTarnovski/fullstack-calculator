@@ -1,0 +1,4 @@
+# Agent tooling, not part of the shipped project
+.agents/
+.claude/
+skills-lock.json
