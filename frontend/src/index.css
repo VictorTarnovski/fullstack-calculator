@@ -1,0 +1,235 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* shadcn's init also redefines the dark variant as a `.dark` class and loads
+   Geist as the sans stack; both are dropped, since the keypad's optical offsets
+   were measured against the default stack. */
+
+/* The bounded panel, wherever there is width to spare beyond what the keypad
+   needs. Landscape always qualifies, whatever the size: the keypad is capped at
+   56dvh, so a window wider than it is tall has room left over by definition.
+   What the panel costs in height has to scale, though — a fixed 1.5rem inset is
+   6% of a 375px-tall window, and spending it there pushed the bottom row off
+   the screen. */
+@custom-variant panel {
+  @media (width >= 40rem) {
+    @slot;
+  }
+  @media (orientation: landscape) {
+    @slot;
+  }
+}
+
+/* @theme carries the light scheme; the media block below re-points the same
+   tokens for dark. The scheme follows the browser preference alone — there is
+   no toggle and no hardcoded default. */
+@theme {
+  /* The surface holds the calculator and stays the pure extreme so the keypad
+     reads as designed; the page sits one step toward mid-grey so the two are
+     always told apart. */
+  --color-app-bg: #f2f2f7;
+  --color-surface: #ffffff;
+  --color-surface-edge: rgb(0 0 0 / 0.08);
+
+  /* Layered so the panel is lit from every side, not just below: an ambient
+     pass with no offset reaches the top edge, a tight pass reads as contact,
+     and a wide offset pass grounds it. */
+  --shadow-panel:
+    0 0 22px rgb(0 0 0 / 0.07), 0 4px 10px rgb(0 0 0 / 0.05),
+    0 18px 44px -14px rgb(0 0 0 / 0.2);
+
+  --color-readout: #1c1c1e;
+  --color-focus-ring: #1c1c1e;
+
+  --color-key-atom: #d1d1d6;
+  --color-key-atom-pressed: #b4b4bb;
+  --color-key-atom-label: #1c1c1e;
+
+  --color-key-function: #57575c;
+  --color-key-function-pressed: #3a3a3e;
+  --color-key-function-label: #ffffff;
+
+  /* Deeper than the dark-scheme orange so white labels stay legible on a
+     light field (3.3:1 against white, versus 2.1:1 for the brighter tint). */
+  --color-key-operator: #e06c00;
+  --color-key-operator-pressed: #b85800;
+  --color-key-operator-label: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-app-bg: #1c1c1e;
+    --color-surface: #000000;
+    --color-surface-edge: rgb(255 255 255 / 0.08);
+
+    /* A black panel casts nothing readable on a dark page, so the shadow works
+       as a vignette that darkens the page around it instead. */
+    --shadow-panel:
+      0 0 28px rgb(0 0 0 / 0.55), 0 20px 56px -18px rgb(0 0 0 / 0.75);
+
+    --color-readout: #ffffff;
+    --color-focus-ring: #ffffff;
+
+    --color-key-atom: #333333;
+    --color-key-atom-pressed: #737373;
+    --color-key-atom-label: #ffffff;
+
+    --color-key-function: #a5a5a5;
+    --color-key-function-pressed: #d4d4d2;
+    --color-key-function-label: #000000;
+
+    --color-key-operator: #ff9f0a;
+    --color-key-operator-pressed: #ffc670;
+    --color-key-operator-label: #ffffff;
+  }
+}
+
+@layer base {
+  :root {
+    /* Room between the panel and the window edge, and the height left over for
+       the panel itself. Both are held here rather than inlined so the two can
+       never disagree about how much the inset costs. */
+    --panel-inset: min(1.5rem, 4dvh);
+    --panel-height: min(44rem, calc(100dvh - 2 * var(--panel-inset)));
+
+    /* The keypad is capped by height as well as width, so on a landscape phone
+       it is far narrower than the panel's own 26rem. The panel is derived from
+       it rather than set independently, which is what keeps it wrapped around
+       the keys instead of leaving a field of empty surface either side. */
+    --keypad-width: min(24rem, 56dvh);
+    --panel-width: min(26rem, calc(var(--keypad-width) + 2rem));
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    /* Lets the scrollbar and any UA-drawn control follow the same preference. */
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--color-app-bg);
+    /* Keys render their own pressed state; suppress the grey tap flash. */
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* shadcn ships these under a `.dark` class, which nothing here ever sets, so a
+   toast would render light over a dark panel. Restore the class selector if a
+   theme toggle is ever added. */
+@media (prefers-color-scheme: dark) {
+  :root {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+  }
+}
